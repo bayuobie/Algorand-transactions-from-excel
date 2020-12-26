@@ -1,0 +1,2 @@
+# Algorand-transactions-from-excel
+This tutorial demonstrates how to execute different Algorand transactions from an imported excel sheet. Three transaction types are covered. First, is a pay transaction in Algorand. Second is a closToRemainder transaction, which transfers all the assets from one account to the other. The last is created Algorand standard assets from the sheet. The sheet is formatted with all these details. A set of conditions are used to check the type of transactions that will be performed based on a set of parameters.
