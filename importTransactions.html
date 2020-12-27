@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>Document</title>
+    <script src="scripts/algosdk.min.js"></script>
+    <script
+      type="text/javascript"
+      src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.15.3/xlsx.full.min.js"
+    ></script>
+  </head>
+
+  <body>
+    <input type="file" id="fileUpload" accept=".xls,.xlsx" /><br />
+    <button type="button" id="uploadExcel">Convert</button>
+    <pre id="jsonData"></pre>
+  </body>
+  <script>
+    //Put your Mnemonic phrase here
+    var mnemonic = "wood clump category carpet cabin cement joy cover this hour armor twist write trade term only label later lizard disease boil pelican dish ability this";
+    let account = algosdk.mnemonicToSecretKey(mnemonic);
+    address = account.addr;;
+
+    //function to process Algorand pay type transactions
+function makePayments (payAddress, payAmount, payNote, payCloseRemainderTo,account){           
+
+  let url = "https://api.testnet.algoexplorer.io/v2/transactions/params";
+ fetch(url)
+      .then(response => response.json())
+      .then(params=> { 
+        firstRound = params["last-round"];
+        lastRound = params["last-round"] + 1000;
+        genesisID = params["genesis-id"];
+        genesisHash = params["genesis-hash"];
+       params.fee= 1000;
+       amount = payAmount;
+      let note = algosdk.encodeObj(payNote);
+      closeRemainderTo = payCloseRemainderTo;
+      address = account.addr;
+
+    let suggestedParams = {
+        "flatFee": true,
+        "fee": params.fee,
+        "firstRound": firstRound,
+        "lastRound": lastRound,
+        "genesisID": genesisID,
+        "genesisHash": genesisHash,
+      
+    };
+
+// processing close_remainder_transaction to transfer asset balance to the next assigned account
+    if (payCloseRemainderTo ===1){
+
+      let txn = algosdk.makePaymentTxnWithSuggestedParams(address, payAddress, amount, payAddress, note, suggestedParams);
+      let signedTxn = txn.signTxn(account.sk);
+      var traxUrl = "https://api.testnet.algoexplorer.io/v2/transactions";
+
+    fetch(traxUrl, {
+        method: 'POST', // or 'PUT'
+        headers: {
+          'Content-Type': 'application/x-binary',
+        },
+        body: signedTxn,
+      })
+      .then(response => response.json())
+      .then(data => {
+        return data;
+        console.log (data);
+       
+      })
+      .catch((error) => {
+        console.error('Error:', error);
+      });
+      
+    }
+
+    //process a normal payment transaction
+    else{ 
+
+     let txn = algosdk.makePaymentTxnWithSuggestedParams(address, payAddress, amount, undefined, payNote, suggestedParams);
+      let signedTxn = txn.signTxn(account.sk);
+    
+      var traxUrl = "https://api.testnet.algoexplorer.io/v2/transactions";
+    
+    fetch(traxUrl, {
+       method: 'POST', // or 'PUT'
+        headers: {
+         'Content-Type': 'application/x-binary',
+        },
+        body: signedTxn,
+      })
+      .then(response => response.json())
+      .then(data => {
+        return data;
+       
+      })
+      .catch((error) => {
+        console.error('Error:', error);
+      });
+      
+    }
+       
+      })
+      ;
+
+}
+
+//function to create an asset transaction
+
+function createAsset(totalIssuance, decimals,reserve,freeze, clawback,manager, unitName, assetName,noteAsset,assetURL){
+  let url = "https://api.testnet.algoexplorer.io/v2/transactions/params";
+
+  fetch(url)
+      .then(response => response.json())
+      .then(params=> {
+             
+       var  firstRound = params["last-round"];
+       var  lastRound = params["last-round"] + 1000;
+      var  genesisID = params["genesis-id"];
+      var  genesisHash = params["genesis-hash"];
+      var fee= 1000;
+      let note = algosdk.encodeObj(noteAsset);
+      var addr = account.addr;
+      let  assetMetadataHash = undefined;
+      let defaultFrozen = false; // whether user accounts will need to be unfrozen before transacting
+
+// signing and sending "txn" allows "addr" to create an asset
+let txn_asset = algosdk.makeAssetCreateTxn(addr, fee, firstRound, lastRound, note,
+    genesisHash, genesisID, totalIssuance, decimals, defaultFrozen, manager, reserve, freeze, clawback,
+    unitName, assetName, assetURL, assetMetadataHash);
+   
+  let signedTxnAsset = txn_asset.signTxn(account.sk);
+
+   var traxUrl = "https://api.testnet.algoexplorer.io/v2/transactions";
+  
+  fetch(traxUrl, {
+   method: 'POST', // or 'PUT'
+    headers: {
+       'Content-Type': 'application/x-binary',
+      },
+      body: signedTxnAsset,
+    })
+    .then(response => response.json())
+   .then(data => {
+      return data;
+     console.log(data);
+     
+    })
+    .catch((error) => {
+     console.error('Error:', error);
+    });
+
+  });
+    
+}
+
+//Alternative function to fetch data from Algoexplorer API
+function Get(yourUrl){
+    var Httpreq = new XMLHttpRequest(); // a new request
+    Httpreq.open("GET",yourUrl,false);
+    Httpreq.send(null);
+    return Httpreq.responseText;          
+}
+
+//Begin processing form input to get excel file
+
+var selectedFile;
+document
+  .getElementById("fileUpload")
+  .addEventListener("change", function(event) {
+    selectedFile = event.target.files[0];
+  });
+document
+  .getElementById("uploadExcel")
+  .addEventListener("click", function() {
+    if (selectedFile) {
+      var fileReader = new FileReader();
+      fileReader.onload = function(event) {
+        var data = event.target.result;
+
+        var workbook = XLSX.read(data, {
+          type: "binary"
+        });
+        workbook.SheetNames.forEach(sheet => {
+          let rowObject = XLSX.utils.sheet_to_row_object_array(
+            workbook.Sheets[sheet]
+          );
+          var jsonObject = JSON.stringify(rowObject);
+     //loop through object to get all excel data and process them one after the other
+          for(var i = 0; i < rowObject.length; i++) {
+
+            var payType = rowObject[i].type;
+            var payAddress = rowObject[i].rev;
+            var isValid = algosdk.isValidAddress(payAddress);
+            var payAmount= rowObject[i].amount;
+            var payAmountConvert = payAmount/1000000;
+            var payFee = rowObject[i].fee;
+            var payNote1 = rowObject[i].note;
+            var payNote = algosdk.encodeObj(payNote1);
+            var payCloseRemainderTo = rowObject[i].close_remainder_to;
+            var payRekeyTo = rowObject[i].rekey;
+            var payRekeyToAddress = rowObject[i].to;
+
+
+           if (payType == "pay" && payCloseRemainderTo !==1) {
+              amountUrl = "https://api.testnet.algoexplorer.io/v2/accounts/"+address;
+            
+              var json_obj = JSON.parse(Get(amountUrl));
+              amountCheck = json_obj.amount/1000000;
+              if ( isValid ==true && amountCheck >payAmountConvert){
+                 makePayments (payAddress, payAmount, payNote, payCloseRemainderTo,account);
+
+                }
+                else{continue;}
+              
+            }
+          
+            else if (payType == "asset") {
+              // skip the row if any of these row columns are empty: the asset address, the asset name and the asset unitname
+              if (!rowObject[i].addr || !rowObject[i].assetName || !rowObject[i].unitName ){
+                 continue;
+               }
+
+              let totalIssuance =rowObject[i].totalIssuance ; // total number of this asset in circulation
+              let decimals = rowObject[i].decimals; // hint that the units of this asset are whole-integer amounts
+              let reserve = rowObject[i].reserve ; // specified address is considered the asset reserve (it has no special privileges, this is only informational)
+              let freeze = rowObject[i].freeze ; // specified address can freeze or unfreeze user asset holdings
+              let clawback = rowObject[i].clawback; // specified address can revoke user asset holdings and send them to other addresses
+              let manager = address; // specified address can change reserve, freeze, clawback, and manager
+              let unitName = rowObject[i].unitName; // used to display asset units to user
+              let assetName = rowObject[i].assetName; // "friendly name" of asset
+              let noteAsset = rowObject[i].noteAsset; // arbitrary data to be stored in the transaction; here, none is stored
+              let assetURL = rowObject[i].assetURL; // optional string pointing to a URL relating to the asset 
+
+             createAsset(totalIssuance, decimals,reserve,freeze, clawback,manager, unitName, assetName,noteAsset,assetURL)
+
+            }
+
+            else if(payType =="pay" && payCloseRemainderTo ===1){
+              if ( isValid ==true ){
+               makePayments(payAddress, payAmount, payNote, payCloseRemainderTo,account);
+
+                }
+                else{continue;}
+
+            
+            }
+          
+                
+            }
+
+        });
+      };
+      fileReader.readAsBinaryString(selectedFile);
+    }
+  });
+  </script>
+</html>
