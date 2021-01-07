@@ -19,14 +19,15 @@
   </body>
   <script>
     //Put your Mnemonic phrase here
-    var mnemonic = "PUT YOUR ALGORAND MNEMONIC PHASE HERE";
+    var mnemonic = "side kidney book discover amused grunt anchor run vessel insane melody violin entire dynamic cloth fog dry deputy process since barely brass tuna absorb crawl";
     let account = algosdk.mnemonicToSecretKey(mnemonic);
-    address = account.addr;;
-
+    address = account.addr;
+    const url = "https://api.testnet.algoexplorer.io/v2/transactions/params";
+    const traxUrl = "https://api.testnet.algoexplorer.io/v2/transactions";
+  
     //function to process Algorand pay type transactions
 function makePayments (payAddress, payAmount, payNote, payCloseRemainderTo,account){           
 
-  let url = "https://api.testnet.algoexplorer.io/v2/transactions/params";
  fetch(url)
       .then(response => response.json())
       .then(params=> { 
@@ -37,7 +38,6 @@ function makePayments (payAddress, payAmount, payNote, payCloseRemainderTo,accou
        params.fee= 1000;
        amount = payAmount;
       let note = algosdk.encodeObj(payNote);
-      closeRemainderTo = payCloseRemainderTo;
       address = account.addr;
 
     let suggestedParams = {
@@ -53,21 +53,20 @@ function makePayments (payAddress, payAmount, payNote, payCloseRemainderTo,accou
 // processing close_remainder_transaction to transfer asset balance to the next assigned account
     if (payCloseRemainderTo ===1){
 
-      let txn = algosdk.makePaymentTxnWithSuggestedParams(address, payAddress, amount, payAddress, note, suggestedParams);
+      let txn = algosdk.makePaymentTxnWithSuggestedParams(address, payAddress, amount, payAddress, payNote, suggestedParams);
       let signedTxn = txn.signTxn(account.sk);
-      var traxUrl = "https://api.testnet.algoexplorer.io/v2/transactions";
+      console.log(signedTxn);
 
-    fetch(traxUrl, {
-        method: 'POST', // or 'PUT'
+      fetch(traxUrl, {
+       method: 'POST', // or 'PUT'
         headers: {
-          'Content-Type': 'application/x-binary',
+         'Content-Type': 'application/x-binary',
         },
         body: signedTxn,
       })
       .then(response => response.json())
       .then(data => {
-        return data;
-        console.log (data);
+       // console.log(data);
        
       })
       .catch((error) => {
@@ -79,10 +78,8 @@ function makePayments (payAddress, payAmount, payNote, payCloseRemainderTo,accou
     //process a normal payment transaction
     else{ 
 
-     let txn = algosdk.makePaymentTxnWithSuggestedParams(address, payAddress, amount, undefined, payNote, suggestedParams);
+     let txn = algosdk.makePaymentTxnWithSuggestedParams(address, payAddress, amount, undefined, note, suggestedParams);
       let signedTxn = txn.signTxn(account.sk);
-    
-      var traxUrl = "https://api.testnet.algoexplorer.io/v2/transactions";
     
     fetch(traxUrl, {
        method: 'POST', // or 'PUT'
@@ -93,7 +90,7 @@ function makePayments (payAddress, payAmount, payNote, payCloseRemainderTo,accou
       })
       .then(response => response.json())
       .then(data => {
-        return data;
+        console.log(data);
        
       })
       .catch((error) => {
@@ -110,7 +107,6 @@ function makePayments (payAddress, payAmount, payNote, payCloseRemainderTo,accou
 //function to create an asset transaction
 
 function createAsset(totalIssuance, decimals,reserve,freeze, clawback,manager, unitName, assetName,noteAsset,assetURL){
-  let url = "https://api.testnet.algoexplorer.io/v2/transactions/params";
 
   fetch(url)
       .then(response => response.json())
@@ -132,8 +128,6 @@ let txn_asset = algosdk.makeAssetCreateTxn(addr, fee, firstRound, lastRound, not
     unitName, assetName, assetURL, assetMetadataHash);
    
   let signedTxnAsset = txn_asset.signTxn(account.sk);
-
-   var traxUrl = "https://api.testnet.algoexplorer.io/v2/transactions";
   
   fetch(traxUrl, {
    method: 'POST', // or 'PUT'
@@ -200,8 +194,6 @@ document
             var payNote1 = rowObject[i].note;
             var payNote = algosdk.encodeObj(payNote1);
             var payCloseRemainderTo = rowObject[i].close_remainder_to;
-            var payRekeyTo = rowObject[i].rekey;
-            var payRekeyToAddress = rowObject[i].to;
 
 
            if (payType == "pay" && payCloseRemainderTo !==1) {
@@ -210,7 +202,7 @@ document
               var json_obj = JSON.parse(Get(amountUrl));
               amountCheck = json_obj.amount/1000000;
               if ( isValid ==true && amountCheck >payAmountConvert){
-                 makePayments (payAddress, payAmount, payNote, payCloseRemainderTo,account);
+                makePayments (payAddress, payAmount, payNote, payCloseRemainderTo,account);
 
                 }
                 else{continue;}
@@ -239,8 +231,9 @@ document
             }
 
             else if(payType =="pay" && payCloseRemainderTo ===1){
+
               if ( isValid ==true ){
-               makePayments(payAddress, payAmount, payNote, payCloseRemainderTo,account);
+              makePayments(payAddress, payAmount, payNote, payCloseRemainderTo,account);
 
                 }
                 else{continue;}
